@@ -91,7 +91,7 @@ def pad_truncate(sequence, max_length, pad_value=0):
     return sequence + [pad_value] * (max_length - len(sequence))
 
 # apply padding to sequences
-def pad_sequences(sequences, max_lengths, pad_value):
+def pad_sequences(sequences, max_lengths, pad_value=0):
     padded = []
     num_sequences = len(sequences)
 
