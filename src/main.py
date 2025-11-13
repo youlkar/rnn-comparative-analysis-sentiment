@@ -12,6 +12,8 @@ from preprocess import preprocess_dataset
 from train import EPOCHS, train_model
 from utils import get_variation_combos, create_dataloaders
 
+
+# set the device type for training on torch
 def check_device():
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -23,36 +25,8 @@ def check_device():
     print("Device selected for training: ", device)
 
     return device
-
-def check_dataloader(dataloaders):
-    for seq_len, loaders in dataloaders.items():
-        train_inputs, train_labels = next(iter(loaders["train"]))
-        val_inputs, val_labels = next(iter(loaders["val"]))
-        test_inputs, test_labels = next(iter(loaders["test"]))
-
-        print(f"Seq {seq_len} train batch {train_inputs.shape}")
-        print(f"val batch {val_inputs.shape}, test batch {test_inputs.shape}")
-        print(f"Train labels dtype {train_labels.dtype}")
-        print(f"Unique values {train_labels.unique().tolist()}")
-
-    for seq_len, loaders in dataloaders.items():
-        train_total = len(loaders["train"].dataset)
-        val_total = len(loaders["val"].dataset)
-        test_total = len(loaders["test"].dataset)
-        print(f"Seq {seq_len}: train={train_total}, val={val_total}, test={test_total}")
-
  
-
-def iterate_configs(variation_configs):
-    variation_keys = list(variation_configs.keys())
-    values = []
-    for key in variation_keys:
-        values.append(variation_configs[key])
-
-    for variation_combo in product(*values):
-        config = dict(zip(variation_keys, variation_combo))
-        yield config
-
+# calls the training loop in the train.py file
 def run_training(model, dataloaders, config, device):
     training_results = train_model(model, dataloaders, config, device)
 
@@ -60,6 +34,7 @@ def run_training(model, dataloaders, config, device):
 
     return training_results
 
+# tests trained model against test set and returns metrics
 def test_model(model, dataloaders, config, device):
     model.eval()
     model.to(device)
@@ -75,8 +50,7 @@ def test_model(model, dataloaders, config, device):
     with torch.no_grad():
         for X_test, y_test in test_dataset_loader:
             if X_test.device.type != device.type:
-                X_test = X_test.to(device, non_blocking=True)
-                y_test = y_test.to(device, non_blocking=True)
+                X_test, y_test = X_test.to(device, non_blocking=True), y_test.to(device, non_blocking=True)
 
             y_test = y_test.float()
 
@@ -106,6 +80,7 @@ def test_model(model, dataloaders, config, device):
     y_true = torch.cat(all_labels).to(device).int()
     y_pred = torch.cat(all_predictions).to(device).int()
 
+    # get the f1, precision and recall scores
     precision_score = precision(y_pred, y_true, task="binary").item()
     recall_score = recall(y_pred, y_true, task="binary").item()
     f1 = f1_score(y_pred, y_true, task="binary").item()
@@ -127,7 +102,6 @@ def main():
 
     print("Lenghth of Cleaned train texts:", len(preprocessed_data["cleaned_train_texts"]))
     print("Lenghth of Tokenized train samples:", len(preprocessed_data["tokenized_train"]))
-    print("Shape of train labels: ", len(preprocessed_data["train_labels"]))
 
     vocab_size = len(preprocessed_data["vocab"])
     print("Vocabulary size for the model: ", vocab_size)

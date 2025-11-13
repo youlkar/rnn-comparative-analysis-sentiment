@@ -26,7 +26,10 @@ class Network(nn.Module):
             raise ValueError("Unknown architecture")
 
         # fully connected layers with activation
-        direction_factor = 2 if self.arch == "BiLSTM" else 1
+        direction_factor = 1
+        if self.arch == "BiLSTM":
+            direction_factor = 2
+
         self.fc1 = nn.Linear(self.hidden_size * direction_factor, self.hidden_size)
         self.fc2 = nn.Linear(self.hidden_size, 1)
         self.activation = getattr(torch, config["activation"]) if hasattr(torch, config["activation"]) else torch.tanh

@@ -39,18 +39,15 @@ def train_test_split_data(review_texts, sentiment_labels):
     rng.shuffle(indices)
 
     midpoint = indices.shape[0] // 2
-    train_idx = indices[:midpoint]
-    test_idx = indices[midpoint:]
+    train_indices = indices[:midpoint]
+    test_indices = indices[midpoint:]
 
-    train_texts = review_array[train_idx].tolist()
-    test_texts = review_array[test_idx].tolist()
-    train_labels = label_array[train_idx].tolist()
-    test_labels = label_array[test_idx].tolist()
+    train_texts = review_array[train_indices].tolist()
+    test_texts = review_array[test_indices].tolist()
+    train_labels = label_array[train_indices].tolist()
+    test_labels = label_array[test_indices].tolist()
 
     return train_texts, test_texts, train_labels, test_labels
-
-
-
 
 
 def clean_text(sentence):
@@ -60,7 +57,7 @@ def clean_text(sentence):
     return sentence
 
 
-def clean_corpus(texts: Sequence[str]) -> List[str]:
+def clean_dataset_texts(texts):
     series = pd.Series(texts, dtype="string")
     cleaned = (
         series.str.lower()
@@ -70,7 +67,7 @@ def clean_corpus(texts: Sequence[str]) -> List[str]:
     )
     return cleaned.fillna("").tolist()
 
-def extract_top_words(texts: Sequence[Iterable[str]], max_words: int):
+def extract_top_words(texts, max_words):
     freq = Counter()
     for text in texts:
         if isinstance(text, str):
@@ -84,7 +81,7 @@ def extract_top_words(texts: Sequence[Iterable[str]], max_words: int):
     return vocab_words, most_common_words
 
 
-def tokenize_texts(cleaned_texts: Sequence[str]) -> List[List[str]]:
+def tokenize_texts(cleaned_texts):
     return [text.split() for text in cleaned_texts]
 
 
@@ -93,22 +90,24 @@ def pad_truncate(sequence, max_length, pad_value=0):
         return sequence[:max_length]
     return sequence + [pad_value] * (max_length - len(sequence))
 
-
-def pad_sequences(sequences: Sequence[Sequence[int]], max_lengths: Sequence[int], pad_value: int = 0):
+# apply padding to sequences
+def pad_sequences(sequences, max_lengths, pad_value):
     padded = []
     num_sequences = len(sequences)
 
     for max_length in max_lengths:
         arr = np.full((num_sequences, max_length), pad_value, dtype=np.int32)
-        for idx, sequence in enumerate(sequences):
-            trunc = sequence[:max_length]
-            arr[idx, : len(trunc)] = trunc
+        for index, sequence in enumerate(sequences):
+            truncated_sequence = sequence[:max_length]
+            arr[index, : len(truncated_sequence)] = truncated_sequence
         padded.append(arr)
     return padded
 
+# convert tokens to ids
 def token_to_ids(tokens, word_to_ids, oov=1):
     return [word_to_ids.get(token, oov) for token in tokens]
 
+# get vocabulary with padding
 def build_padded_vocab(vocab_words):
     padded_vocab = {"<PAD>": 0, "<OOV>": 1}
     for i, word in enumerate(vocab_words, start=2):
@@ -122,7 +121,6 @@ def preprocess_dataset(dataset_path, max_words, max_lengths):
     # read the data
     review_texts, sentiment_labels = read_dataset(dataset_path)
 
-
     # convert labels to binary
     label_map = {"negative": 0, "positive": 1}
     sentiment_labels = [1 if label == "positive" else 0 for label in sentiment_labels]
@@ -132,10 +130,10 @@ def preprocess_dataset(dataset_path, max_words, max_lengths):
     train_texts, test_texts, train_labels, test_labels = train_test_split_data(review_texts, sentiment_labels)
 
     # clean annd tokenize the text
-    cleaned_train_texts = clean_corpus(train_texts)
+    cleaned_train_texts = clean_dataset_texts(train_texts)
     tokenized_train = tokenize_texts(cleaned_train_texts)
 
-    cleaned_test_texts = clean_corpus(test_texts)
+    cleaned_test_texts = clean_dataset_texts(test_texts)
     tokenized_test = tokenize_texts(cleaned_test_texts)
 
     # get the top words and pad the words (build vocab on train only)
@@ -165,23 +163,3 @@ def preprocess_dataset(dataset_path, max_words, max_lengths):
         "test_padded_sequences": test_padded_sequences,
         "max_lengths": list(max_lengths),
     }
-
-
-if __name__ == "__main__":
-    start_time = time.time()
-    max_words = 10000
-    max_lengths = [25, 50, 100]
-    dataset_path = os.getcwd()+"/data/IMDB dataset.csv"
-
-    preprocessed_data = preprocess_dataset(dataset_path, max_words, max_lengths)
-
-
-    print("Cleaned train texts:", len(preprocessed_data["cleaned_train_texts"]))
-    print("Tokenized train samples:", len(preprocessed_data["tokenized_train"]))
-    print("First tokenized train sample:", preprocessed_data["tokenized_train"][0][:10])
-    print("Cleaned test texts:", len(preprocessed_data["cleaned_test_texts"]))
-    # print("Total padded variants:", padded_sequences)
-
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
-    print(f"Time per sample: {(end_time - start_time) / len(preprocessed_data['cleaned_train_texts'])} seconds")
